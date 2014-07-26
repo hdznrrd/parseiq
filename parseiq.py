@@ -79,10 +79,11 @@ def output_dump(wav_file, n=None, offset=None):
 def correlation_index(haystack, needle):
     ci = []
     
-    for i in range(1+max(0,len(haystack)-len(needle))):
+    length = max(0,len(haystack)-len(needle)
+    for i in range(1+max(0,length)):
         if i%500 == 0:
-            perc = 100.0/len(haystack)*i
-            print str(i) + "/" + str(len(haystack)) + " (" + str(perc*100) + ")"
+            perc = (100.0/length)*i
+            print str(i) + "/" + str(len(haystack)) + " (" + str(perc) + ")"
         ci.append( correlate(haystack[i:len(needle)],needle) )
     
     return ci
