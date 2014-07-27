@@ -29,6 +29,8 @@ from multiprocessing import Process, Queue
 # https://github.com/docopt/docopt
 from docopt import docopt
 
+import logging
+
 def read_n_iq_frames(wav_file, n_frames=None, offset=None):
     """Reads n_frames or all frame starting from offset and
     returns an numpy array of complex numbers"""
@@ -109,12 +111,12 @@ def correlation_index(haystack, needle):
 
     length = 1+max(0, len(haystack)-len(needle))
 
-    print "generating tasks"
+    logging.info("generating tasks")
     for i in range(0, length, workload_size):
         work_queue.put(range(i, max(length, i+workload_size)))
 
-    print "generated " + str(work_queue.qsize()) + " jobs"
-    print "setting up workers"
+    logging.info("generated " + str(work_queue.qsize()) + " jobs")
+    logging.info("setting up workers")
     for w in xrange(workers):
         process = Process(target=worker
                           , args=(haystack, needle, work_queue, done_queue))
@@ -122,18 +124,18 @@ def correlation_index(haystack, needle):
         processes.append(process)
         work_queue.put('STOP')
 
-    print "crunching..."
+    logging.info("crunching...")
     for process in processes:
         process.join()
 
     done_queue.put('STOP')
 
-    print "consolidating..."
+    logging.info("consolidating...")
     correlation_values = []
     for result in sorted(iter(done_queue.get, 'STOP')):
         correlation_values += result[1]
 
-    print "done"
+    logging.info("done")
     return correlation_values
 
 def output_correlation_find(haystack, needle, peak_threshold
@@ -147,24 +149,40 @@ def output_correlation_find(haystack, needle, peak_threshold
     if not haystack_offset:
         haystack_offset = 0
 
-    print "loading pattern..."
+    logging.info("loading pattern...")
     needle_iq = read_n_iq_frames(needle)
-    print "loading haystack..."
+    logging.info("loading haystack...")
     hay_iq = read_n_iq_frames(haystack, haystack_n, haystack_offset)
 
-    print "correlating..."
+    logging.info("correlating...")
     correlation_values = correlation_index(hay_iq, needle_iq)
 
-    print "peak extraction..."
+    logging.info("peak extraction...")
     peak_idxs = np.where(correlation_values > peak_threshold)[0]
 
-    print "done"
-    print peak_idxs + haystack_offset
-    print correlation_values[peak_idxs]
+    logging.info("done")
+    logging.info(peak_idxs + haystack_offset)
+    logging.info(correlation_values[peak_idxs])
 
 def main():
     """entry point"""
     arguments = docopt(__doc__)
+
+    # set up logging to file - see previous section for more details
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                        datefmt='%m-%d %H:%M',
+                        filename='parseiq.log',
+                        filemode='w')
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    # set a format which is simpler for console use
+    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    # tell the handler to use this format
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logging.getLogger('').addHandler(console)
 
     #block_size = int(arguments['-b'])
     #skip_frames = int(arguments['-s'])
