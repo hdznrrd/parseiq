@@ -32,11 +32,13 @@ from docopt import docopt
 def read_n_iq_frames(wav_file, n_frames=None, offset=None):
     """Reads n_frames or all frame starting from offset and
     returns an numpy array of complex numbers"""
-    if n_frames == None:
+    if not n_frames:
         n_frames = wav_file.getnframes()
 
     if offset != None:
         wav_file.setpos(offset)
+    else:
+        offset = 0
 
     n_frames = min(n_frames, wav_file.getnframes()-offset)
 
