@@ -24,35 +24,43 @@ import wave
 # https://docs.python.org/2/library/struct.html
 import struct
 import numpy as np
-import math
+
+from multiprocessing import Process, Queue
 
 # https://github.com/docopt/docopt
 from docopt import docopt
 
-def read_n_iq_frames(wav_file, n=None, offset=None):
-    if n is None:
-        n = wav_file.getnframes()
+def read_n_iq_frames(wav_file, n_frames=None, offset=None):
+    """Reads n_frames or all frame starting from offset and
+    returns an numpy array of complex numbers"""
+    if n_frames == None:
+        n_frames = wav_file.getnframes()
 
     if offset is not None:
         wav_file.setpos(offset)
 
-    data = np.array(struct.unpack('<{n}h'.format(n=n*wav_file.getnchannels()), wav_file.readframes(n)))
+    n_frames = min(n_frames, wav_file.getnframes()-offset)
+
+    data = np.array(struct.unpack(
+                    '<{n}h'.format(n=n_frames*wav_file.getnchannels()),
+                    wav_file.readframes(n_frames)))
     return data[0:][::2] + 1j*data[1:][::2]
 
+def correlate(first, second):
+    """Calculates correlation between (complex) arrays a and b"""
+    min_length = min(len(first), len(second))
 
-def correlate(a, b):
-    ml = min(len(a), len(b))
-    
-    a_std = np.std(a[0:ml]) 
-    b_std = np.std(b[0:ml]) 
-    
-    a_mean = np.mean(a[0:ml])
-    b_mean = np.mean(b[0:ml])
-    
-    ab_sum = np.sum(np.multiply(a[0:ml], b[0:ml].conjugate()))
-    
-    corr = (ab_sum - ml*a_mean*b_mean.conjugate())/((ml-1)*a_std*b_std)
-    
+    first_std = np.std(first[0:min_length]) 
+    second_std = np.std(second[0:min_length]) 
+
+    first_mean = np.mean(first[0:min_length])
+    second_mean = np.mean(second[0:min_length])
+
+    firstsecond_sum = np.sum(np.multiply(first[0:min_length], second[0:min_length].conjugate()))
+
+    numerator = firstsecond_sum - min_length*first_mean*second_mean.conjugate()
+    denominator = (min_length-1)*first_std*second_std
+    corr = numerator/denominator
     return corr
 
 #def do_fft(data,frate):
@@ -63,36 +71,76 @@ def correlate(a, b):
 #    idx=np.argmax(np.abs(w)**2)
 #    freq=freqs[idx]
 #    freq_in_hertz=abs(freq*frate)
-#    return (freqs.min(),freqs.max(),freq_in_hertz,math.sqrt(np.sum(np.abs(w)**2))/len(w))
+#    return (freqs.min(), freqs.max(), freq_in_hertz
+#           , math.sqrt(np.sum(np.abs(w)**2))/len(w))
 
 
-def output_dump(wav_file, n=None, offset=None):
-    if n is None:
-        n = wav_file.getnframes()
+def output_dump(wav_file, n_frames=None, offset=None):
+    """Dumps the provided wave file as text formatted complex numbers"""
+    if not n_frames:
+        n_frames = wav_file.getnframes()
 
-    if offset is None:
+    if not offset:
         offset = 0
 
-    iq = read_n_iq_frames(wav_file, n, offset)
+    iq_data = read_n_iq_frames(wav_file, n_frames, offset)
 
-    for i in range(len(iq)):
-        print '{iq}'.format(iq=iq[i])
+    for i in range(len(iq_data)):
+        print '{iq}'.format(iq=iq_data[i])
+
+
+def worker(haystack, needle, work_queue, done_queue):
+    """Worker thread funktion to calculate correlation"""
+    for task in iter(work_queue.get, 'STOP'):
+        correlation_values = []
+        for i in task:
+            correlation_values.append(correlate(haystack[i:len(needle)]
+                                                , needle))
+        done_queue.put([task, correlation_values])
 
 
 def correlation_index(haystack, needle):
-    ci = []
-    
-    length = max(0, len(haystack)-len(needle))
-    for i in range(1+max(0, length)):
-        if i % 500 == 0:
-            perc = (100.0/length)*i
-            print str(i) + "/" + str(len(haystack)) + " (" + str(perc) + ")"
-        ci.append(correlate(haystack[i:len(needle)], needle))
-    
-    return ci
+    """Calculate correlation for all offsets of needle inside haystack"""
+    workers = 5
+    workload_size = 1000000
+    work_queue = Queue()
+    done_queue = Queue()
+    processes = []
 
+    length = 1+max(0, len(haystack)-len(needle))
 
-def output_correlation_find(haystack, needle, peak_threshold, haystack_n=None, haystack_offset=None):
+    print "generating tasks"
+    for i in range(0, length, workload_size):
+        work_queue.put(range(i, max(length, i+workload_size)))
+
+    print "generated " + str(work_queue.qsize()) + " jobs"
+    print "setting up workers"
+    for w in xrange(workers):
+        process = Process(target=worker
+                          , args=(haystack, needle, work_queue, done_queue))
+        process.start()
+        processes.append(process)
+        work_queue.put('STOP')
+
+    print "crunching..."
+    for process in processes:
+        process.join()
+
+    done_queue.put('STOP')
+
+    print "consolidating..."
+    correlation_values = []
+    for result in sorted(iter(done_queue.get, 'STOP')):
+        correlation_values += result[1]
+
+    print "done"
+    return correlation_values
+
+def output_correlation_find(haystack, needle, peak_threshold
+                            , haystack_n=None, haystack_offset=None):
+    """Calculates correlation of needle with every possible
+    offset in haystack and reports location of all values that have
+    higher correlation than peak_threshold"""
     if not haystack_n:
         haystack_n = haystack.getnframes()
 
@@ -105,28 +153,35 @@ def output_correlation_find(haystack, needle, peak_threshold, haystack_n=None, h
     hay_iq = read_n_iq_frames(haystack, haystack_n, haystack_offset)
 
     print "correlating..."
-    ci = correlation_index(hay_iq, needle_iq)
+    correlation_values = correlation_index(hay_iq, needle_iq)
 
     print "peak extraction..."
-    peaks = np.where(ci > peak_threshold)[0]
+    peak_idxs = np.where(correlation_values > peak_threshold)[0]
 
     print "done"
-    print peaks + haystack_offset
-    print ci[peaks]
+    print peak_idxs + haystack_offset
+    print correlation_values[peak_idxs]
 
-if __name__=='__main__':
+def main():
+    """entry point"""
     arguments = docopt(__doc__)
 
-    block_size = int(arguments['-b'])
-    skip_frames = int(arguments['-s'])
-    offset_frames = int(arguments['-o'])
+    #block_size = int(arguments['-b'])
+    #skip_frames = int(arguments['-s'])
+    #offset_frames = int(arguments['-o'])
 
     #if arguments['peaksearch']:
     #    output_analysis(wav_file)
 
     if arguments['dump']:
-        output_dump(wave.open(arguments['FILE'],'r'), int(arguments['-f']), int(arguments['-o']))
+        output_dump(wave.open(arguments['FILE'], 'r')
+                    , int(arguments['-f'])
+                    , int(arguments['-o']))
 
     if arguments['search']:
-        output_correlation_find( wave.open(arguments['FILE'],'r'), wave.open(arguments['PATTERN_FILE'],'r'), float(arguments['-t']))
+        output_correlation_find(wave.open(arguments['FILE'], 'r')
+                                , wave.open(arguments['PATTERN_FILE'], 'r')
+                                , float(arguments['-t']))
 
+if __name__ == '__main__':
+    main()
