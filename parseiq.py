@@ -1,3 +1,4 @@
+# coding=utf-8
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 """Usage:   parseiq.py dump [-o OFFSET] [-f FRAMES] FILE
             parseiq.py peaksearch [-b BLOCKSIZE] [-s SKIPFRAMES] [-f FRAMES] FILE
@@ -29,17 +30,18 @@ import math
 from docopt import docopt
 
 def read_n_iq_frames(wav_file, n=None, offset=None):
-    if n == None:
+    if n is None:
         n = wav_file.getnframes()
 
-    if offset != None:
+    if offset is not None:
         wav_file.setpos(offset)
 
-    data = np.array( struct.unpack( '<{n}h'.format( n=n*wav_file.getnchannels() ), wav_file.readframes(n) ) )
+    data = np.array(struct.unpack('<{n}h'.format(n=n*wav_file.getnchannels()), wav_file.readframes(n)))
     return data[0:][::2] + 1j*data[1:][::2]
 
-def correlate(a,b):
-    ml = min(len(a),len(b))
+
+def correlate(a, b):
+    ml = min(len(a), len(b))
     
     a_std = np.std(a[0:ml]) 
     b_std = np.std(b[0:ml]) 
@@ -47,7 +49,7 @@ def correlate(a,b):
     a_mean = np.mean(a[0:ml])
     b_mean = np.mean(b[0:ml])
     
-    ab_sum = np.sum(np.multiply(a[0:ml],b[0:ml].conjugate()))
+    ab_sum = np.sum(np.multiply(a[0:ml], b[0:ml].conjugate()))
     
     corr = (ab_sum - ml*a_mean*b_mean.conjugate())/((ml-1)*a_std*b_std)
     
@@ -65,10 +67,10 @@ def correlate(a,b):
 
 
 def output_dump(wav_file, n=None, offset=None):
-    if n==None:
+    if n is None:
         n = wav_file.getnframes()
 
-    if offset==None:
+    if offset is None:
         offset = 0
 
     iq = read_n_iq_frames(wav_file, n, offset)
@@ -76,17 +78,19 @@ def output_dump(wav_file, n=None, offset=None):
     for i in range(len(iq)):
         print '{iq}'.format(iq=iq[i])
 
+
 def correlation_index(haystack, needle):
     ci = []
     
-    length = max(0,len(haystack)-len(needle))
-    for i in range(1+max(0,length)):
-        if i%500 == 0:
+    length = max(0, len(haystack)-len(needle))
+    for i in range(1+max(0, length)):
+        if i % 500 == 0:
             perc = (100.0/length)*i
             print str(i) + "/" + str(len(haystack)) + " (" + str(perc) + ")"
-        ci.append( correlate(haystack[i:len(needle)],needle) )
+        ci.append(correlate(haystack[i:len(needle)], needle))
     
     return ci
+
 
 def output_correlation_find(haystack, needle, peak_threshold, haystack_n=None, haystack_offset=None):
     if not haystack_n:
@@ -107,7 +111,7 @@ def output_correlation_find(haystack, needle, peak_threshold, haystack_n=None, h
     peaks = np.where(ci > peak_threshold)[0]
 
     print "done"
-    print peaks + haystack_offset;
+    print peaks + haystack_offset
     print ci[peaks]
 
 if __name__=='__main__':
