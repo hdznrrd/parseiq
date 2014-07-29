@@ -30,6 +30,7 @@ from multiprocessing import Process, Queue
 # https://github.com/docopt/docopt
 from docopt import docopt
 
+
 def read_n_iq_frames(wav_file, n_frames=None, offset=None):
     """Reads n_frames or all frame starting from offset and
     returns an numpy array of complex numbers"""
@@ -46,6 +47,7 @@ def read_n_iq_frames(wav_file, n_frames=None, offset=None):
                     wav_file.readframes(n_frames)))
     return data[0:][::2] + 1j*data[1:][::2]
 
+
 def correlate(first, second):
     """Calculates correlation between (complex) arrays a and b"""
     min_length = min(len(first), len(second))
@@ -61,6 +63,7 @@ def correlate(first, second):
     numerator = firstsecond_sum - min_length*first_mean*second_mean.conjugate()
     denominator = (min_length-1)*first_std*second_std
     corr = numerator/denominator
+
     return corr
 
 #def do_fft(data,frate):
@@ -161,6 +164,7 @@ def output_correlation_find(haystack, needle, peak_threshold
     print "done"
     print peak_idxs + haystack_offset
     print correlation_values[peak_idxs]
+
 
 def main():
     """entry point"""
