@@ -2,7 +2,6 @@
 Record memory usage points over time
 """
 
-import os
 import time
 
 class Recorder(object):
