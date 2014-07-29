@@ -34,7 +34,7 @@ from docopt import docopt
 def read_n_iq_frames(wav_file, n_frames=None, offset=None):
     """Reads n_frames or all frame starting from offset and
     returns an numpy array of complex numbers"""
-    if n_frames == None:
+    if n_frames is None:
         n_frames = wav_file.getnframes()
 
     if offset is not None:
@@ -45,7 +45,10 @@ def read_n_iq_frames(wav_file, n_frames=None, offset=None):
     data = np.array(struct.unpack(
                     '<{n}h'.format(n=n_frames*wav_file.getnchannels()),
                     wav_file.readframes(n_frames)))
-    return data[0:][::2] + 1j*data[1:][::2]
+
+    result = data[0:][::2] + 1j * data[1:][::2]
+
+    return result
 
 
 def correlate(first, second):
@@ -94,11 +97,14 @@ def output_dump(wav_file, n_frames=None, offset=None):
 
 def worker(haystack, needle, work_queue, done_queue):
     """Worker thread funktion to calculate correlation"""
+    needle_length = len(needle)
+
     for task in iter(work_queue.get, 'STOP'):
         correlation_values = []
         for i in task:
-            correlation_values.append(correlate(haystack[i:len(needle)]
-                                                , needle))
+            correlated = correlate(haystack[i:needle_length], needle)
+            correlation_values.append(correlated)
+
         done_queue.put([task, correlation_values])
 
 
@@ -119,8 +125,7 @@ def correlation_index(haystack, needle):
     print "generated " + str(work_queue.qsize()) + " jobs"
     print "setting up workers"
     for w in xrange(workers):
-        process = Process(target=worker
-                          , args=(haystack, needle, work_queue, done_queue))
+        process = Process(target=worker, args=(haystack, needle, work_queue, done_queue))
         process.start()
         processes.append(process)
         work_queue.put('STOP')
@@ -139,8 +144,8 @@ def correlation_index(haystack, needle):
     print "done"
     return correlation_values
 
-def output_correlation_find(haystack, needle, peak_threshold
-                            , haystack_n=None, haystack_offset=None):
+
+def output_correlation_find(haystack, needle, peak_threshold, haystack_n=None, haystack_offset=None):
     """Calculates correlation of needle with every possible
     offset in haystack and reports location of all values that have
     higher correlation than peak_threshold"""
@@ -178,14 +183,18 @@ def main():
     #    output_analysis(wav_file)
 
     if arguments['dump']:
-        output_dump(wave.open(arguments['FILE'], 'r')
-                    , int(arguments['-f'])
-                    , int(arguments['-o']))
+        wav_file = wave.open(arguments['FILE'], 'r')
+        n_frames = int(arguments['-f'])
+        offset = int(arguments['-o'])
+
+        output_dump(wav_file, n_frames, offset)
 
     if arguments['search']:
-        output_correlation_find(wave.open(arguments['FILE'], 'r')
-                                , wave.open(arguments['PATTERN_FILE'], 'r')
-                                , float(arguments['-t']))
+        haystack = wave.open(arguments['FILE'], 'r')
+        needle = wave.open(arguments['PATTERN_FILE'], 'r')
+        peak_threshold = float(arguments['-t'])
+
+        output_correlation_find(haystack, needle, peak_threshold)
 
 if __name__ == '__main__':
     main()
