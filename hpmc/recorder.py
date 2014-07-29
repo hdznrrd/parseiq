@@ -37,7 +37,6 @@ class Recorder(object):
 
 if __name__ == '__main__':
     import unittest as ut
-    from mock import Mock
 
     class ARecorderInitializesDataToEmptyList(ut.TestCase):
         def runTest(self):
