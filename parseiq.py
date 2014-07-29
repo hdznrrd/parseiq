@@ -1,5 +1,5 @@
 # coding=utf-8
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 """Usage:   parseiq.py dump [-o OFFSET] [-f FRAMES] FILE
             parseiq.py peaksearch [-b BLOCKSIZE] [-s SKIPFRAMES] [-f FRAMES] FILE
             parseiq.py search [-t THRESHOLD] FILE PATTERN_FILE
