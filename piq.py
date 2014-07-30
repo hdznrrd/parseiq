@@ -33,15 +33,25 @@ class Piq(object):
     def readiq(self, wavfile, offset, length):
         pass
 
-    def verifyfileformat(self, wavfile):
-        if wavfile.getchannels() != 2:
+    def verifyfileformat(self, wavfile_a, wavfile_b=None):
+        """Verify file format of input files to be valid and consistent"""
+        if wavfile_b:
+            # First test the second paramter as if we just had one
+            self.verifyfileformat(wavfile_b)
+            # make sure we have matching frame rates if there's two parameters
+            if wavfile_a.getframerate() != wavfile_b.getframerate():
+                raise TypeError('Input filenames must have matching framerates')
+
+        # Tests that apply to all input files individually
+        if wavfile_a.getchannels() != 2:
             raise TypeError('Input file must be stereo')
-        if wavfile.getsamplewidth() != 2:
+        if wavfile_a.getsamplewidth() != 2:
             raise TypeError('Input file must be 16 bit')
-        if wavfile.getcomptype() != 'NONE':
+        if wavfile_a.getcomptype() != 'NONE':
             raise TypeError('Input file must not be compressed')
 
     def populatefilemetadata(self, metastore):
+        """Populate a given input files dict with some usefull meta data"""
         metastore['framerate'] = metastore['fh'].getframerate()
         metastore['nframes'] = metastore['fh'].getnframes()
 
@@ -50,6 +60,7 @@ class Piq(object):
         if self.arguments['dump']:
             try:
                 self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
+                self.verifyfileformat(self.haystack['fh'])
                 self.populatefilemetadata(self.haystack)
                 self.do_dump()
             finally:
@@ -60,6 +71,7 @@ class Piq(object):
             try:
                 self.needle['fh'] = wave.open(self.arguments['PATTERN'], 'rb')
                 self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
+                self.verifyfileformat(self.haystack['fh'], self.needle['fh'])
                 self.populatefilemetadata(self.haystack)
                 self.populatefilemetadata(self.needle)
                 self.do_find()
