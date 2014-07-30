@@ -1,4 +1,5 @@
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+# coding=utf-8
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 """Usage:   parseiq.py dump [-o OFFSET] [-f FRAMES] FILE
             parseiq.py peaksearch [-b BLOCKSIZE] [-s SKIPFRAMES] [-f FRAMES] FILE
             parseiq.py search [-t THRESHOLD] FILE PATTERN_FILE
@@ -34,10 +35,10 @@ import logging
 def read_n_iq_frames(wav_file, n_frames=None, offset=None):
     """Reads n_frames or all frame starting from offset and
     returns an numpy array of complex numbers"""
-    if not n_frames:
+    if n_frames is None:
         n_frames = wav_file.getnframes()
 
-    if offset != None:
+    if offset is not None:
         wav_file.setpos(offset)
     else:
         offset = 0
@@ -47,7 +48,11 @@ def read_n_iq_frames(wav_file, n_frames=None, offset=None):
     data = np.array(struct.unpack(
                     '<{n}h'.format(n=n_frames*wav_file.getnchannels()),
                     wav_file.readframes(n_frames)))
-    return data[0:][::2] + 1j*data[1:][::2]
+
+    result = data[0:][::2] + 1j * data[1:][::2]
+
+    return result
+
 
 def correlate(first, second):
     """Calculates correlation between (complex) arrays a and b"""
@@ -64,6 +69,7 @@ def correlate(first, second):
     numerator = firstsecond_sum - min_length*first_mean*second_mean.conjugate()
     denominator = (min_length-1)*first_std*second_std
     corr = numerator/denominator
+
     return corr
 
 #def do_fft(data,frate):
@@ -94,12 +100,16 @@ def output_dump(wav_file, n_frames=None, offset=None):
 
 def worker(haystack, needle, work_queue, done_queue):
     """Worker thread funktion to calculate correlation"""
+    needle_length = len(needle)
+
     for task in iter(work_queue.get, 'STOP'):
         correlation_values = []
         for i in task:
-            correlation_values.append(correlate(haystack[i:len(needle)]
-                                                , needle))
+            correlated = correlate(haystack[i:needle_length], needle)
+            correlation_values.append(correlated)
+
         done_queue.put([task, correlation_values])
+
 
 def correlation_index(haystack, needle):
     """Calculate correlation for all offsets of needle inside haystack"""
@@ -138,8 +148,8 @@ def correlation_index(haystack, needle):
     logging.info("done")
     return correlation_values
 
-def output_correlation_find(haystack, needle, peak_threshold
-                            , haystack_n=None, haystack_offset=None):
+
+def output_correlation_find(haystack, needle, peak_threshold, haystack_n=None, haystack_offset=None):
     """Calculates correlation of needle with every possible
     offset in haystack and reports location of all values that have
     higher correlation than peak_threshold"""
