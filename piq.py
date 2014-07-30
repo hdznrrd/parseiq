@@ -14,9 +14,24 @@ Options:
 
 from docopt import docopt
 
+
+def do_dump():
+    pass
+
+def do_find():
+    pass
+
+
 def main():
     """Entry point"""
     arguments = docopt(__doc__)
+
+
+    if arguments['dump']:
+        do_dump()
+
+    if arguments['find']:
+        do_find()
 
 if __name__ == '__main__':
     main()
