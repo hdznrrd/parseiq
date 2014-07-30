@@ -44,16 +44,16 @@ class Piq(object):
     def verifyfileformat(self, wavfile_a, wavfile_b=None):
         """Verify file format of input files to be valid and consistent"""
         if wavfile_b:
-            # First test the second paramter as if we just had one
-            self.verifyfileformat(wavfile_b)
             # make sure we have matching frame rates if there's two parameters
             if wavfile_a.getframerate() != wavfile_b.getframerate():
                 raise TypeError('Input filenames must have matching framerates')
+            # First test the second paramter as if we just had one
+            self.verifyfileformat(wavfile_b)
 
         # Tests that apply to all input files individually
-        if wavfile_a.getchannels() != 2:
+        if wavfile_a.getnchannels() != 2:
             raise TypeError('Input file must be stereo')
-        if wavfile_a.getsamplewidth() != 2:
+        if wavfile_a.getsampwidth() != 2:
             raise TypeError('Input file must be 16 bit')
         if wavfile_a.getcomptype() != 'NONE':
             raise TypeError('Input file must not be compressed')
