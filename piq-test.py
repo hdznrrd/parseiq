@@ -1,4 +1,4 @@
-from piq import Piq
+from piq import Piq, OutOfDataException
 import unittest as ut
 from mock import Mock
 import struct
@@ -182,6 +182,11 @@ class AdvanceDeletesAsManyItemsAsItFetches(MockReadiqFixture):
         self.piq.readiq.assert_call_with(self.piq.haystack, 4)
         assert self.piq.haystack['offset'] == 8
         assert len(self.piq.haystack['data']) == len(reference);
+
+class AdvanceRaisesOutOfDataExceptionAtEOF(MockReadiqFixture):
+    def runTest(self):
+        self.assertRaises(OutOfDataException, self.piq.advance, self.piq.haystack, 4)
+
 
 if __name__ == '__main__':
     ut.main()

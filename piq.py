@@ -18,6 +18,9 @@ import wave
 import struct
 import numpy as np
 
+class OutOfDataException(Exception):
+    pass
+
 class Piq(object):
     """Application class for piq"""
     def __init__(self, arguments):
@@ -40,6 +43,8 @@ class Piq(object):
             metastore['offset'] += elementsread
             metastore['data'] = metastore['data'][np.s_[elementsread::]]
             metastore['data'] = np.concatenate((metastore['data'], data))
+        else:
+            raise OutOfDataException()
 
     def do_dump(self):
         """Dump a file to stdout"""
