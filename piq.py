@@ -1,6 +1,7 @@
 """\
 Usage:  piq.py dump [-o OFFSET] [-f FRAMES] FILE
-        piq.py find [-o OFFSET] [-f FRAMES] PATTERN FILE
+        piq.py findreftick  [-o OFFSET] [-f FRAMES] FILE
+        piq.py findpattern [-o OFFSET] [-f FRAMES] PATTERN FILE
 
 Arguments:
         FILE        Input file in 16 bit I/Q format
@@ -28,8 +29,12 @@ class Piq(object):
         """Dump a file to stdout"""
         pass
 
-    def do_find(self):
+    def do_findpattern(self):
         """Find a pattern within another file"""
+        pass
+
+    def do_findireftick(self):
+        """Find occurences of reference timer ticks"""
         pass
 
     def readiq(self, metastore, offset, length):
@@ -76,13 +81,20 @@ class Piq(object):
             finally:
                 if self.haystack['fh']:
                     self.haystack['fh'].close()
-
-        elif self.arguments['find']:
+        elif self.arguments['findreftick']:
+            try:
+                self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
+                self.verifyfileformat(self.haystack['fh'])
+                self.do_findreftick()
+            finally:
+                if self.haystack['fh']:
+                    self.haystack['fh'].close()
+        elif self.arguments['findpattern']:
             try:
                 self.needle['fh'] = wave.open(self.arguments['PATTERN'], 'rb')
                 self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
                 self.verifyfileformat(self.haystack['fh'], self.needle['fh'])
-                self.do_find()
+                self.do_findpattern()
             finally:
                 if self.needle['fh']:
                     self.needle['fh'].close()
