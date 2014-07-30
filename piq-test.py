@@ -170,7 +170,18 @@ class PiqStoresPassedArgumentsDict(ut.TestCase):
         self.assertDictEqual(Piq(reference).arguments, reference)
 
 class AdvanceDeletesAsManyItemsAsItFetches(MockReadiqFixture):
-    pass
+    def runTest(self):
+        reference = np.array([0+0j, 1+1j, 2+2j, 3+3j],
+                             dtype=np.complex64)
+        self.piq.readiq.return_value = reference
+        self.piq.haystack['data'] = reference * 4
+        self.piq.haystack['offset'] = len(reference)
+
+        self.piq.advance(self.piq.haystack, 4)
+        
+        self.piq.readiq.assert_call_with(self.piq.haystack, 4)
+        assert self.piq.haystack['offset'] == 8
+        assert len(self.piq.haystack['data']) == len(reference);
 
 if __name__ == '__main__':
     ut.main()

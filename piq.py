@@ -37,10 +37,9 @@ class Piq(object):
         elementsread = len(data)
 
         if elementsread > 0:
-            print elementsread
             metastore['offset'] += elementsread
-            metastore['data'] = np.append(metastore['data'], data)
-            np.delete(metastore['data'], range(0,elementsread))
+            metastore['data'] = metastore['data'][np.s_[elementsread::]]
+            metastore['data'] = np.concatenate((metastore['data'], data))
 
     def do_dump(self):
         """Dump a file to stdout"""
