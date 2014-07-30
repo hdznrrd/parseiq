@@ -159,6 +159,10 @@ class AdvanceIncrementsOffset(PiqFixture):
         self.piq.readiq.assert_call_with(self.piq.haystack, 4)
         assert self.piq.haystack['offset'] == 4
 
+class PiqStoresPassedArgumentsDict(ut.TestCase):
+    def runTest(self):
+        reference = {'a':42, 'b':23}
+        self.assertDictEqual(Piq(reference).arguments, reference)
 
 if __name__ == '__main__':
     ut.main()
