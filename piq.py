@@ -41,11 +41,16 @@ class Piq(object):
         if wavfile.getcomptype() != 'NONE':
             raise TypeError('Input file must not be compressed')
 
+    def populatefilemetadata(self, metastore):
+        metastore['framerate'] = metastore['fh'].getframerate()
+        metastore['nframes'] = metastore['fh'].getnframes()
+
     def dispatch(self):
         """Dispatcher for the command interface"""
         if self.arguments['dump']:
             try:
                 self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
+                self.populatefilemetadata(self.haystack)
                 self.do_dump()
             finally:
                 if self.haystack['fh']:
@@ -55,6 +60,8 @@ class Piq(object):
             try:
                 self.needle['fh'] = wave.open(self.arguments['PATTERN'], 'rb')
                 self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
+                self.populatefilemetadata(self.haystack)
+                self.populatefilemetadata(self.needle)
                 self.do_find()
             finally:
                 if self.needle['fh']:
