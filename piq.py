@@ -19,6 +19,8 @@ class Piq(object):
     """Application class for piq"""
     def __init__(self, arguments):
         self.arguments = arguments
+        self.haystack = {}
+        self.needle = {}
 
     def do_dump(self):
         """Dump a file to stdout"""
@@ -31,26 +33,34 @@ class Piq(object):
     def readiq(self, wavfile, offset, length):
         pass
 
+    def verifyfileformat(self, wavfile):
+        if wavfile.getchannels() != 2:
+            raise TypeError('Input file must be stereo')
+        if wavfile.getsamplewidth() != 2:
+            raise TypeError('Input file must be 16 bit')
+        if wavfile.getcomptype() != 'NONE':
+            raise TypeError('Input file must not be compressed')
+
     def dispatch(self):
         """Dispatcher for the command interface"""
         if self.arguments['dump']:
             try:
-                self.haystack_file = wave.open(self.arguments['FILE'], 'rb')
+                self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
                 self.do_dump()
             finally:
-                if self.haystack_file:
-                    self.haystack_file.close()
+                if self.haystack['fh']:
+                    self.haystack['fh'].close()
 
         elif self.arguments['find']:
             try:
-                self.needle_file = wave.open(self.arguments['PATTERN'], 'rb')
-                self.haystack_file = wave.open(self.arguments['FILE'], 'rb')
+                self.needle['fh'] = wave.open(self.arguments['PATTERN'], 'rb')
+                self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
                 self.do_find()
             finally:
-                if self.needle_file:
-                    self.needle_file.close()
-                if self.haystack_file:
-                    self.haystack_file.close()
+                if self.needle['fh']:
+                    self.needle['fh'].close()
+                if self.haystack['fh']:
+                    self.haystack['fh'].close()
 
     def run(self):
         """Entry point of the application"""
