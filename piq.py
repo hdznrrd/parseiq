@@ -14,6 +14,7 @@ Options:
 
 from docopt import docopt
 import wave
+import struct
 
 class Piq(object):
     """Application class for piq"""
@@ -30,8 +31,15 @@ class Piq(object):
         """Find a pattern within another file"""
         pass
 
-    def readiq(self, wavfile, offset, length):
-        pass
+    def readiq(self, metastore, offset, length):
+        wav = metastore['fh']
+        wav.setpos(offset)
+        length = max(0, min(wav.getnframes() - offset, length))
+        data = np.array(struct.unpack(
+                        '<{}h'.format(length*wav.getnchannels()),
+                        wav.readnframes(length)))
+        result = data[0::2] + 1j * data[1::2]
+        return result
 
     def verifyfileformat(self, wavfile_a, wavfile_b=None):
         """Verify file format of input files to be valid and consistent"""
@@ -50,18 +58,12 @@ class Piq(object):
         if wavfile_a.getcomptype() != 'NONE':
             raise TypeError('Input file must not be compressed')
 
-    def populatefilemetadata(self, metastore):
-        """Populate a given input files dict with some usefull meta data"""
-        metastore['framerate'] = metastore['fh'].getframerate()
-        metastore['nframes'] = metastore['fh'].getnframes()
-
     def dispatch(self):
         """Dispatcher for the command interface"""
         if self.arguments['dump']:
             try:
                 self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
                 self.verifyfileformat(self.haystack['fh'])
-                self.populatefilemetadata(self.haystack)
                 self.do_dump()
             finally:
                 if self.haystack['fh']:
@@ -72,8 +74,6 @@ class Piq(object):
                 self.needle['fh'] = wave.open(self.arguments['PATTERN'], 'rb')
                 self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
                 self.verifyfileformat(self.haystack['fh'], self.needle['fh'])
-                self.populatefilemetadata(self.haystack)
-                self.populatefilemetadata(self.needle)
                 self.do_find()
             finally:
                 if self.needle['fh']:
