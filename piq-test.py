@@ -2,6 +2,7 @@ from piq import Piq
 import unittest as ut
 from mock import Mock
 import struct
+import numpy as np
 
 #def populatewavfile(wav):
 #    """Generates 16 bit stereo file with 440 Hz on left and 730 Hz
@@ -117,6 +118,46 @@ class ReadiqReadsLessThanAllAvailableData(PiqFixture):
 
         assert len(data) == 3
         self.piq.needle['fh'].readnframes.assert_called_with(3)
+
+class HaystackBufferIsEmptyListOnCreation(ut.TestCase):
+    def runTest(self):
+        assert len(Piq({}).haystack['data']) == 0
+
+class NeedleBufferIsEmptyListOnCreation(ut.TestCase):
+    def runTest(self):
+        assert len(Piq({}).needle['data']) == 0
+
+class HaystackOffsetIsZeroOnCreation(ut.TestCase):
+    def runTest(self):
+        assert Piq({}).haystack['offset'] == 0
+
+class NeedleOffsetIsZeroOnCreation(ut.TestCase):
+    def runTest(self):
+        assert Piq({}).needle['offset'] == 0
+
+class AdvanceFillsInitialBuffer(PiqFixture):
+    def runTest(self):
+        self.piq.readiq = Mock()
+        reference = np.array([0+0j, 1+1j, 2+2j, 3+3j],
+                             dtype=np.complex64)
+        self.piq.readiq.return_value = reference
+        
+        self.piq.advance(self.piq.haystack, 4)
+
+        self.piq.readiq.assert_call_with(self.piq.haystack, 4)
+        np.testing.assert_array_equal(self.piq.haystack['data'], reference)
+
+class AdvanceIncrementsOffset(PiqFixture):
+    def runTest(self):
+        self.piq.readiq = Mock()
+        reference = np.array([0+0j, 1+1j, 2+2j, 3+3j],
+                             dtype=np.complex64)
+        self.piq.readiq.return_value = reference
+        
+        self.piq.advance(self.piq.haystack, 4)
+
+        self.piq.readiq.assert_call_with(self.piq.haystack, 4)
+        assert self.piq.haystack['offset'] == 4
 
 
 if __name__ == '__main__':

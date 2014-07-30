@@ -24,6 +24,23 @@ class Piq(object):
         self.arguments = arguments
         self.haystack = {}
         self.needle = {}
+        self.haystack['data'] = np.array([], dtype=np.complex64)
+        self.haystack['offset'] = 0
+        self.needle['data'] = np.array([], dtype=np.complex64)
+        self.needle['offset'] = 0
+
+    def advance(self, metastore, nframes):
+        """Read up to nframes from the wave file associated
+        with the provided metastore and use it to virtually
+        shift the window into the file by the amount read"""
+        data = self.readiq(metastore, metastore['offset'], nframes)
+        elementsread = len(data)
+
+        if elementsread > 0:
+            print elementsread
+            metastore['offset'] += elementsread
+            metastore['data'] = np.append(metastore['data'], data)
+            np.delete(metastore['data'], range(0,elementsread))
 
     def do_dump(self):
         """Dump a file to stdout"""
