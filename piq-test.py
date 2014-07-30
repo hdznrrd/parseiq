@@ -22,7 +22,7 @@ import numpy as np
 #
 #    wav.close()
 
-class PiqFixture(ut.TestCase):
+class MockWaveReaderFixture(ut.TestCase):
     """Test fixture containing two mocked wave files"""
     def setUp(self):
         self.piq = Piq({})
@@ -39,12 +39,19 @@ class PiqFixture(ut.TestCase):
         setupmock(self.piq.haystack['fh'])
         setupmock(self.piq.needle['fh'])
 
-class VerifiesFilesIntegrityWithActualFiles(PiqFixture):
+class MockReadiqFixture(ut.TestCase):
+    """Test fixture containing two mocked wave files"""
+    def setUp(self):
+        self.piq = Piq({})
+        self.piq.readiq = Mock()
+        self.piq.readiq.return_value = np.array([], dtype=np.complex64)
+
+class VerifiesFilesIntegrityWithActualFiles(MockWaveReaderFixture):
     def runTest(self):
         self.piq.verifyfileformat(self.piq.haystack['fh'],
                                   self.piq.needle['fh'])
 
-class RequiresStereoFile(PiqFixture):
+class RequiresStereoFile(MockWaveReaderFixture):
     def runTest(self):
         self.piq.haystack['fh'].getnchannels.return_value = 1
         self.assertRaises(TypeError,
@@ -52,7 +59,7 @@ class RequiresStereoFile(PiqFixture):
                           self.piq.haystack['fh'])
         self.piq.haystack['fh'].getnchannels.assert_called_with()
 
-class Requires16BitFile(PiqFixture):
+class Requires16BitFile(MockWaveReaderFixture):
     def runTest(self):
         self.piq.haystack['fh'].getsampwidth.return_value = 1
         self.assertRaises(TypeError,
@@ -60,7 +67,7 @@ class Requires16BitFile(PiqFixture):
                           self.piq.haystack['fh'])
         self.piq.haystack['fh'].getsampwidth.assert_called_with()
 
-class RequiresUncompressedFile(PiqFixture):
+class RequiresUncompressedFile(MockWaveReaderFixture):
     def runTest(self):
         self.piq.haystack['fh'].getcomptype.return_value = 'LZW'
         self.assertRaises(TypeError,
@@ -68,7 +75,7 @@ class RequiresUncompressedFile(PiqFixture):
                           self.piq.haystack['fh'])
         self.piq.haystack['fh'].getcomptype.assert_called_with()
 
-class RequiresMatchingFramerate(PiqFixture):
+class RequiresMatchingFramerate(MockWaveReaderFixture):
     def runTest(self):
         self.piq.haystack['fh'].getframerate.return_value = 23
         self.piq.needle['fh'].getframerate.return_value = 42
@@ -79,7 +86,7 @@ class RequiresMatchingFramerate(PiqFixture):
         self.piq.haystack['fh'].getframerate.assert_called_with()
         self.piq.needle['fh'].getframerate.assert_called_with()
 
-class ReadiqHandlesZeroLengthData(PiqFixture):
+class ReadiqHandlesZeroLengthData(MockWaveReaderFixture):
     def runTest(self):
         self.piq.needle['fh'].getnframes.return_value = 0
         self.piq.needle['fh'].readnframes.return_value = ''
@@ -89,7 +96,7 @@ class ReadiqHandlesZeroLengthData(PiqFixture):
         assert len(data) == 0
         self.piq.needle['fh'].readnframes.assert_called_with(0)
      
-class ReadiqClips(PiqFixture):
+class ReadiqClips(MockWaveReaderFixture):
     def runTest(self):
         self.piq.needle['fh'].getnframes.return_value = 1
         self.piq.needle['fh'].readnframes.return_value = struct.pack('<2h', 23, 42)
@@ -99,7 +106,7 @@ class ReadiqClips(PiqFixture):
         assert len(data) == 1
         self.piq.needle['fh'].readnframes.assert_called_with(1)
 
-class ReadiqReadsAllAvailableData(PiqFixture):
+class ReadiqReadsAllAvailableData(MockWaveReaderFixture):
     def runTest(self):
         self.piq.needle['fh'].getnframes.return_value = 4
         self.piq.needle['fh'].readnframes.return_value = struct.pack('<8h', 1, 2, 3, 4, 5, 6, 7, 8)
@@ -109,7 +116,7 @@ class ReadiqReadsAllAvailableData(PiqFixture):
         assert len(data) == 4
         self.piq.needle['fh'].readnframes.assert_called_with(4)
 
-class ReadiqReadsLessThanAllAvailableData(PiqFixture):
+class ReadiqReadsLessThanAllAvailableData(MockWaveReaderFixture):
     def runTest(self):
         self.piq.needle['fh'].getnframes.return_value = 100
         self.piq.needle['fh'].readnframes.return_value = struct.pack('<6h', 1, 2, 3, 4, 5, 6)
@@ -135,9 +142,8 @@ class NeedleOffsetIsZeroOnCreation(ut.TestCase):
     def runTest(self):
         assert Piq({}).needle['offset'] == 0
 
-class AdvanceFillsInitialBuffer(PiqFixture):
+class AdvanceFillsInitialBuffer(MockReadiqFixture):
     def runTest(self):
-        self.piq.readiq = Mock()
         reference = np.array([0+0j, 1+1j, 2+2j, 3+3j],
                              dtype=np.complex64)
         self.piq.readiq.return_value = reference
@@ -147,9 +153,8 @@ class AdvanceFillsInitialBuffer(PiqFixture):
         self.piq.readiq.assert_call_with(self.piq.haystack, 4)
         np.testing.assert_array_equal(self.piq.haystack['data'], reference)
 
-class AdvanceIncrementsOffset(PiqFixture):
+class AdvanceIncrementsOffset(MockReadiqFixture):
     def runTest(self):
-        self.piq.readiq = Mock()
         reference = np.array([0+0j, 1+1j, 2+2j, 3+3j],
                              dtype=np.complex64)
         self.piq.readiq.return_value = reference
@@ -163,6 +168,9 @@ class PiqStoresPassedArgumentsDict(ut.TestCase):
     def runTest(self):
         reference = {'a':42, 'b':23}
         self.assertDictEqual(Piq(reference).arguments, reference)
+
+class AdvanceDeletesAsManyItemsAsItFetches(MockReadiqFixture):
+    pass
 
 if __name__ == '__main__':
     ut.main()
