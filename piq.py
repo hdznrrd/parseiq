@@ -15,23 +15,26 @@ Options:
 from docopt import docopt
 
 
-def do_dump():
-    pass
+class Piq(object):
+    """Application class for piq"""
+    def __init__(self, arguments):
+        self.arguments = arguments
 
-def do_find():
-    pass
+    def do_dump(self):
+        """Dump a file to stdout"""
+        pass
 
+    def do_find(self):
+        """Find a pattern within another file"""
+        pass
 
-def main():
-    """Entry point"""
-    arguments = docopt(__doc__)
+    def run(self):
+        """Entry point of the application"""
+        if self.arguments['dump']:
+            self.do_dump()
+        elif self.arguments['find']:
+            self.do_find()
 
-
-    if arguments['dump']:
-        do_dump()
-
-    if arguments['find']:
-        do_find()
 
 if __name__ == '__main__':
-    main()
+    Piq(docopt(__doc__)).run()
