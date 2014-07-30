@@ -1,11 +1,7 @@
 from piq import Piq
 import unittest as ut
-from mock import Mock, patch
-import wave
-import tempfile
-import math
+from mock import Mock
 import struct
-import numpy as np
 
 #def populatewavfile(wav):
 #    """Generates 16 bit stereo file with 440 Hz on left and 730 Hz
@@ -41,7 +37,6 @@ class PiqFixture(ut.TestCase):
 
         setupmock(self.piq.haystack['fh'])
         setupmock(self.piq.needle['fh'])
-
 
 class VerifiesFilesIntegrityWithActualFiles(PiqFixture):
     def runTest(self):
@@ -82,6 +77,47 @@ class RequiresMatchingFramerate(PiqFixture):
                           self.piq.needle['fh'])
         self.piq.haystack['fh'].getframerate.assert_called_with()
         self.piq.needle['fh'].getframerate.assert_called_with()
- 
+
+class ReadiqHandlesZeroLengthData(PiqFixture):
+    def runTest(self):
+        self.piq.needle['fh'].getnframes.return_value = 0
+        self.piq.needle['fh'].readnframes.return_value = ''
+
+        data = self.piq.readiq(self.piq.needle, 0, 100)
+
+        assert len(data) == 0
+        self.piq.needle['fh'].readnframes.assert_called_with(0)
+     
+class ReadiqClips(PiqFixture):
+    def runTest(self):
+        self.piq.needle['fh'].getnframes.return_value = 1
+        self.piq.needle['fh'].readnframes.return_value = struct.pack('<2h', 23, 42)
+
+        data = self.piq.readiq(self.piq.needle, 0, 100)
+
+        assert len(data) == 1
+        self.piq.needle['fh'].readnframes.assert_called_with(1)
+
+class ReadiqReadsAllAvailableData(PiqFixture):
+    def runTest(self):
+        self.piq.needle['fh'].getnframes.return_value = 4
+        self.piq.needle['fh'].readnframes.return_value = struct.pack('<8h', 1, 2, 3, 4, 5, 6, 7, 8)
+
+        data = self.piq.readiq(self.piq.needle, 0, 4)
+
+        assert len(data) == 4
+        self.piq.needle['fh'].readnframes.assert_called_with(4)
+
+class ReadiqReadsLessThanAllAvailableData(PiqFixture):
+    def runTest(self):
+        self.piq.needle['fh'].getnframes.return_value = 100
+        self.piq.needle['fh'].readnframes.return_value = struct.pack('<6h', 1, 2, 3, 4, 5, 6)
+
+        data = self.piq.readiq(self.piq.needle, 0, 3)
+
+        assert len(data) == 3
+        self.piq.needle['fh'].readnframes.assert_called_with(3)
+
+
 if __name__ == '__main__':
     ut.main()

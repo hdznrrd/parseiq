@@ -15,6 +15,7 @@ Options:
 from docopt import docopt
 import wave
 import struct
+import numpy as np
 
 class Piq(object):
     """Application class for piq"""
@@ -35,10 +36,17 @@ class Piq(object):
         wav = metastore['fh']
         wav.setpos(offset)
         length = max(0, min(wav.getnframes() - offset, length))
-        data = np.array(struct.unpack(
-                        '<{}h'.format(length*wav.getnchannels()),
-                        wav.readnframes(length)))
+        data = wav.readnframes(length)
+        if len(data) > 0:
+            data = np.array(struct.unpack(
+                            '<{}h'.format(length*wav.getnchannels()),
+                            wav.readnframes(length)),
+                            dtype=np.complex64)
+        else:
+            data =np.array([], dtype=np.complex64)
+
         result = data[0::2] + 1j * data[1::2]
+
         return result
 
     def verifyfileformat(self, wavfile_a, wavfile_b=None):
