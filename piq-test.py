@@ -1,4 +1,4 @@
-from piq import Piq, OutOfDataException
+from piq import Piq
 import unittest as ut
 from mock import Mock
 import struct
@@ -89,42 +89,42 @@ class RequiresMatchingFramerate(MockWaveReaderFixture):
 class ReadiqHandlesZeroLengthData(MockWaveReaderFixture):
     def runTest(self):
         self.piq.needle['fh'].getnframes.return_value = 0
-        self.piq.needle['fh'].readnframes.return_value = ''
+        self.piq.needle['fh'].readframes.return_value = ''
 
         data = self.piq.readiq(self.piq.needle, 0, 100)
 
         assert len(data) == 0
-        self.piq.needle['fh'].readnframes.assert_called_with(0)
+        self.piq.needle['fh'].readframes.assert_called_with(0)
      
 class ReadiqClips(MockWaveReaderFixture):
     def runTest(self):
         self.piq.needle['fh'].getnframes.return_value = 1
-        self.piq.needle['fh'].readnframes.return_value = struct.pack('<2h', 23, 42)
+        self.piq.needle['fh'].readframes.return_value = struct.pack('<2h', 23, 42)
 
         data = self.piq.readiq(self.piq.needle, 0, 100)
 
         assert len(data) == 1
-        self.piq.needle['fh'].readnframes.assert_called_with(1)
+        self.piq.needle['fh'].readframes.assert_called_with(1)
 
 class ReadiqReadsAllAvailableData(MockWaveReaderFixture):
     def runTest(self):
         self.piq.needle['fh'].getnframes.return_value = 4
-        self.piq.needle['fh'].readnframes.return_value = struct.pack('<8h', 1, 2, 3, 4, 5, 6, 7, 8)
+        self.piq.needle['fh'].readframes.return_value = struct.pack('<8h', 1, 2, 3, 4, 5, 6, 7, 8)
 
         data = self.piq.readiq(self.piq.needle, 0, 4)
 
         assert len(data) == 4
-        self.piq.needle['fh'].readnframes.assert_called_with(4)
+        self.piq.needle['fh'].readframes.assert_called_with(4)
 
 class ReadiqReadsLessThanAllAvailableData(MockWaveReaderFixture):
     def runTest(self):
         self.piq.needle['fh'].getnframes.return_value = 100
-        self.piq.needle['fh'].readnframes.return_value = struct.pack('<6h', 1, 2, 3, 4, 5, 6)
+        self.piq.needle['fh'].readframes.return_value = struct.pack('<6h', 1, 2, 3, 4, 5, 6)
 
         data = self.piq.readiq(self.piq.needle, 0, 3)
 
         assert len(data) == 3
-        self.piq.needle['fh'].readnframes.assert_called_with(3)
+        self.piq.needle['fh'].readframes.assert_called_with(3)
 
 class HaystackBufferIsEmptyListOnCreation(ut.TestCase):
     def runTest(self):
@@ -182,10 +182,6 @@ class AdvanceDeletesAsManyItemsAsItFetches(MockReadiqFixture):
         self.piq.readiq.assert_call_with(self.piq.haystack, 4)
         assert self.piq.haystack['offset'] == 8
         assert len(self.piq.haystack['data']) == len(reference);
-
-class AdvanceRaisesOutOfDataExceptionAtEOF(MockReadiqFixture):
-    def runTest(self):
-        self.assertRaises(OutOfDataException, self.piq.advance, self.piq.haystack, 4)
 
 
 if __name__ == '__main__':

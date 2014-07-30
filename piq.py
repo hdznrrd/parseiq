@@ -18,9 +18,6 @@ import wave
 import struct
 import numpy as np
 
-class OutOfDataException(Exception):
-    pass
-
 class Piq(object):
     """Application class for piq"""
     def __init__(self, arguments):
@@ -43,12 +40,14 @@ class Piq(object):
             metastore['offset'] += elementsread
             metastore['data'] = metastore['data'][np.s_[elementsread::]]
             metastore['data'] = np.concatenate((metastore['data'], data))
-        else:
-            raise OutOfDataException()
+
+        return elementsread
 
     def do_dump(self):
         """Dump a file to stdout"""
-        pass
+        while(self.advance(self.haystack,100)):
+            for v in self.haystack['data']:
+                print v
 
     def do_findpattern(self):
         """Find a pattern within another file"""
@@ -62,11 +61,11 @@ class Piq(object):
         wav = metastore['fh']
         wav.setpos(offset)
         length = max(0, min(wav.getnframes() - offset, length))
-        data = wav.readnframes(length)
+        data = wav.readframes(length)
         if len(data) > 0:
             data = np.array(struct.unpack(
                             '<{}h'.format(length*wav.getnchannels()),
-                            wav.readnframes(length)),
+                            wav.readframes(length)),
                             dtype=np.complex64)
         else:
             data =np.array([], dtype=np.complex64)
@@ -124,10 +123,7 @@ class Piq(object):
 
     def run(self):
         """Entry point of the application"""
-        try:
-            self.dispatch()
-        except:
-            pass
+        self.dispatch()
 
 if __name__ == '__main__':
     Piq(docopt(__doc__)).run()
