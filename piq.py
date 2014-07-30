@@ -28,6 +28,9 @@ class Piq(object):
         """Find a pattern within another file"""
         pass
 
+    def readiq(self, wavfile, offset, length):
+        pass
+
     def dispatch(self):
         """Dispatcher for the command interface"""
         if self.arguments['dump']:
