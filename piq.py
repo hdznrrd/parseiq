@@ -53,7 +53,7 @@ class Piq(object):
         """Find a pattern within another file"""
         pass
 
-    def do_findireftick(self):
+    def do_findreftick(self):
         """Find occurences of reference timer ticks"""
         pass
 
@@ -65,7 +65,7 @@ class Piq(object):
         if len(data) > 0:
             data = np.array(struct.unpack(
                             '<{}h'.format(length*wav.getnchannels()),
-                            wav.readframes(length)),
+                            data),
                             dtype=np.complex64)
         else:
             data =np.array([], dtype=np.complex64)
