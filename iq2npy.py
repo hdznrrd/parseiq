@@ -85,6 +85,7 @@ def main():
 
     except Exception, e:
         logging.fatal(e)
+        error(e)
 
 if __name__ == '__main__':
     try:
