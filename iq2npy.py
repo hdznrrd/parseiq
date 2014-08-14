@@ -40,16 +40,23 @@ def convert(in_name, out_name):
     channels = wav.getnchannels()
 
     logging.info('length: {} frames, channels: {}'.format(length, channels))
-
-    data = wav.readframes(length)
-    data = np.array(struct.unpack('<{}h'.format(length*channels),
-                                  data),
-                    dtype=np.complex64)
     wav.close()
-    npfile = np.memmap(out_name, dtype=np.complex64,
-                       mode='w+', shape=(1, length))
+   
+    # now that we know the format is valid, access data directly
+    npinfile = np.memmap(in_name, dtype=np.int16, mode='r', offset=44) 
+    if npinfile.shape[0]/2 != length:
+        raise TypeError('frame mismatch in direct access')
 
-    npfile[:] = data[0::2] + 1j * data[1::2]
+    # our output file, this will be an npy binary holding complex64 types
+    npfile = np.memmap(out_name, dtype=np.complex64,
+                       mode='w+',
+                       shape=(length,))
+
+    # convert input to complex output
+    npfile[:] = npinfile[0::2] + 1j * npinfile[1::2]
+    
+    # cleanup
+    del npinfile
     del npfile
 
 def main():
