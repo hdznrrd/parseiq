@@ -4,8 +4,8 @@ Usage:  piq.py dump [-o OFFSET] [-f FRAMES] FILE
         piq.py findpattern [-o OFFSET] [-f FRAMES] PATTERN FILE
 
 Arguments:
-        FILE        Input file in 16 bit I/Q format
-        PATTERN     Pattern in 16 bit I/Q format to be searched in FILE
+        FILE        Input file in complex64 NPY format
+        PATTERN     Pattern in complex64 NPY format to be searched in FILE
 
 Options:
         -h --help   Show this help message and exit
@@ -24,30 +24,15 @@ class Piq(object):
         self.arguments = arguments
         self.haystack = {}
         self.needle = {}
-        self.haystack['data'] = np.array([], dtype=np.complex64)
+        self.haystack['data'] = None
         self.haystack['offset'] = 0
-        self.needle['data'] = np.array([], dtype=np.complex64)
+        self.needle['data'] = None
         self.needle['offset'] = 0
-
-    def advance(self, metastore, nframes):
-        """Read up to nframes from the wave file associated
-        with the provided metastore and use it to virtually
-        shift the window into the file by the amount read"""
-        data = self.readiq(metastore, metastore['offset'], nframes)
-        elementsread = len(data)
-
-        if elementsread > 0:
-            metastore['offset'] += elementsread
-            metastore['data'] = metastore['data'][np.s_[elementsread::]]
-            metastore['data'] = np.concatenate((metastore['data'], data))
-
-        return elementsread
 
     def do_dump(self):
         """Dump a file to stdout"""
-        while(self.advance(self.haystack,100)):
-            for v in self.haystack['data']:
-                print v
+        for v in self.haystack['data']:
+            print v
 
     def do_findpattern(self):
         """Find a pattern within another file"""
@@ -57,69 +42,18 @@ class Piq(object):
         """Find occurences of reference timer ticks"""
         pass
 
-    def readiq(self, metastore, offset, length):
-        wav = metastore['fh']
-        wav.setpos(offset)
-        length = max(0, min(wav.getnframes() - offset, length))
-        data = wav.readframes(length)
-        if len(data) > 0:
-            data = np.array(struct.unpack(
-                            '<{}h'.format(length*wav.getnchannels()),
-                            data),
-                            dtype=np.complex64)
-        else:
-            data =np.array([], dtype=np.complex64)
-
-        result = data[0::2] + 1j * data[1::2]
-
-        return result
-
-    def verifyfileformat(self, wavfile_a, wavfile_b=None):
-        """Verify file format of input files to be valid and consistent"""
-        if wavfile_b:
-            # make sure we have matching frame rates if there's two parameters
-            if wavfile_a.getframerate() != wavfile_b.getframerate():
-                raise TypeError('Input filenames must have matching framerates')
-            # First test the second paramter as if we just had one
-            self.verifyfileformat(wavfile_b)
-
-        # Tests that apply to all input files individually
-        if wavfile_a.getnchannels() != 2:
-            raise TypeError('Input file must be stereo')
-        if wavfile_a.getsampwidth() != 2:
-            raise TypeError('Input file must be 16 bit')
-        if wavfile_a.getcomptype() != 'NONE':
-            raise TypeError('Input file must not be compressed')
-
     def dispatch(self):
         """Dispatcher for the command interface"""
         if self.arguments['dump']:
-            try:
-                self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
-                self.verifyfileformat(self.haystack['fh'])
-                self.do_dump()
-            finally:
-                if self.haystack['fh']:
-                    self.haystack['fh'].close()
+            self.haystack['data'] = np.memmap(self.arguments['FILE'], mode='r', dtype=np.complex64)
+            self.do_dump()
         elif self.arguments['findreftick']:
-            try:
-                self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
-                self.verifyfileformat(self.haystack['fh'])
-                self.do_findreftick()
-            finally:
-                if self.haystack['fh']:
-                    self.haystack['fh'].close()
+            self.haystack['data'] = np.memmap(self.arguments['FILE'], mode='r', dtype=np.complex64)
+            self.do_findreftick()
         elif self.arguments['findpattern']:
-            try:
-                self.needle['fh'] = wave.open(self.arguments['PATTERN'], 'rb')
-                self.haystack['fh'] = wave.open(self.arguments['FILE'], 'rb')
-                self.verifyfileformat(self.haystack['fh'], self.needle['fh'])
-                self.do_findpattern()
-            finally:
-                if self.needle['fh']:
-                    self.needle['fh'].close()
-                if self.haystack['fh']:
-                    self.haystack['fh'].close()
+            self.needle['data'] = np.memmap(self.arguments['PATTERN'], mode='r', dtype=np.complex64)
+            self.haystack['data'] = np.memmap(self.arguments['FILE'], mode='r', dtype=np.complex64)
+            self.do_findpattern()
 
     def run(self):
         """Entry point of the application"""
